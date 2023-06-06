@@ -1,0 +1,407 @@
+Lecture 2 Application Layer Summary
+
+Generally each layer of the ‘internet procotol stack’ adds a header to the application layer’s message. 
+So, the application layer adds a message to the stack, the transport layer adds a segment to the stack, the network layer adds a datagram, and the link layer adds a frame to the header.
+
+Since the application layer requires the functionalities of the transport layer, what does the application layer want from the transport layer?
+▶ Reliable data transfer (RDT)
+	▶ Messages arrive complete and unchanged
+	▶ Messages arrive in order, and are not duplicated
+	▶ To get an error when a message cannot be delivered
+
+▶ Throughput (the rate at which the sending process can deliver messages to the receiving process, in bits/second)
+	▶ Bandwidth-sensitive applications: specific (minimum) requirements
+	▶ Elastic applications: make use of whatever is available
+
+▶ Timing / latency (messages arrive no more than n msec later)
+
+▶ Security
+	▶ Authenticity
+	▶ Confidentiality
+
+Transport services actually provided by the Internet
+The two main transport protocols in the internet are:
+▶ TCP: Transmission Control Protocol
+ Services it provides:
+	1. Reliable Data Transfer
+	2. Connections (connect before sending data, required for 1)
+▶ UDP: User Datagram Protocol
+ Services it provides:
+	1. This space intentionally left blank
+	2. Actually there’s a checksum, but that’s it
+
+There are variations on these protocols & there are other protocols, but
+these are the two most important ones.
+(Note: application layer protocols often use other ‘application layer’
+protocols such as TLS, HTTP(S), SSH for transport.)
+
+Notice anything missing?
+The Internet does not provide these services to the application layer:
+	▶ Throughput guarantees
+	▶ Latency guarantees
+
+Does that mean that these applications cannot run on the internet?
+Obviously they can, most of the time, because they were built to cope with the internets’ limitations to some extent.
+
+--Using the transport layer: sockets--
+
+▶ Sockets are objects managed by the kernel that represent endpoints for any type of network-ish communication.
+▶ The socket interface can provides access not only to TCP and UDP, but also to protocols from the other layers, and even to protocols unrelated to the internet (such as interprocess communication.)
+▶ The behaviour of a socket is determined by its type; the two major ones are SOCK_STREAM and SOCK_DGRAM which have TCP- and UDP-like semantics, respectively.
+
+What is the 'process' of a socket:
+1. Sending process sends message using send(to)
+2. Rely on the OS & transport infrastructure to get the message to
+socket on the other side
+3. Receiving process retrieves message using recv
+4. (Note: in the SOCK_STREAM/TCP-case the boundary between
+messages is not preserved; the message might, for example, arrive in
+two pieces.)
+
+So what’s the deal with ports?
+Processes using service from the transport layer need to specify a port to
+▶ server: listen on (TCP) or recv (UDP) using bind()
+▶ client: connect to (TCP) or sendto (UDP)
+
+This is so that their messages can be identified among those of many other processes.
+Specific application layer protocols often have specific port numbers:
+▶ HTTP: 80 (Hypertext transfer protocol)
+▶ HTTPS: 443 (Hypertext transfer protocol secure)
+▶ DNS: 53 (Domain Name Server)
+▶ SMTP: 25 (often blocked by residential ISPs to combat spam) (Simple Mail transfer protocol)
+▶ SSH: 22 (Secure Shell)
+Registry is administered by IANA (Internet Assigned Numbers Authority)
+For security binding to ports < 1024 under Linux requires root privilege.
+
+--Network Application Architectures-
+
+Client–server architecture
+▶ To establish UDP/TCP communication between two hosts, one of them must know4 IP address of the other.
+▶ This leads to the client–server architecture, where a server is a host that is allways-on and has a permanent IP address known to its clients, the hosts that need to connect to it.
+▶ Examples: HTTP, SMTP, DNS, SSH, IRC, FTP, . . . .
+▶ Usually the server provides some kind of service to its clients 
+
+Peer-to-peer architecture
+▶ The client–server model serves as the basic building block for other models.
+▶ For example, two clients connecting to the same server using UDP can learn each other’s IP address and UDP source port from the server, and thus contact each other directly.
+The clients are then called peers and are said to have established a peer-to-peer connection.
+▶ More advanced methods to connect peers exist, such as the distributed hash tables used by BitTorrent, but it is always necessary to contact some kind of server to make contact with the first peer.
+▶ Examples: Skype, BitTorrent, BitCoin, . .
+
+-- Hypertext Transfer Protocol (HTTP)--
+
+HTTP overview (HTTP 1.1 - RFC 26166 / 7230–7237)
+▶ HyperText Transfer Protocol
+▶ Web’s application layer protocol
+▶ Some terminology:
+▶ Web page consists of objects
+▶ Object is simply a file: HTML file, JPEG image, Java applet, JavaScript Code snippet, Cascading Style Sheet, etc.
+▶ Objects are referenced by Uniform Resource Locator (URL) (a special case of a Uniform Resource Identifier (URI), see RFC 3986)
+▶ A URL consists of a scheme (http://), host part (www.example.org), and a path (/index.html).
+▶ If any of these are missing, they are implied.
+▶ Most Web pages consist of a base HTML (HyperText Markup Language) file and several referenced objects
+▶ HTTP (HyperText Transfer Protocol) is the protocol used to access these
+
+Components of the Web application
+The Web uses the client-server model:
+▶ Client: browser program that requests, receives and displays objects
+▶ Chromium, Firefox, qutebrowser, . . .
+▶ Server: server program that sends objects in response to requests
+▶ Nginx, Apache, lighttpd, Yaws, . . .
+
+HTTP request
+▶ Request line: method (e.g. GET, POST, HEAD), path, HTTP version
+
+HTTP response
+▶ Status line: protocol version, status code, status message
+
+HTTP and States
+▶ The HTTP protocol is stateless
+	▶ i.e. no protocol state is maintained by the HTTP server7
+	▶ An HTTP request is independent of another request (but maybe not for the backend)
+	▶ A returning client is not recognized
+▶ Still we often need states when using HTTP. E.g.:
+	▶ when putting items in a shopping cart
+	▶ to remember your preferred language
+▶ How can we make HTTP look stateful?
+	▶ The server sends the state, or a reference to the state, to the client
+	▶ The client sends it back to the server every time it returns
+▶ Multiple ways to achieve this:
+	▶ Cookies: the state is sent and returned in HTTP headers
+	▶ URL extension: the state is sent as part of the URL
+
+Improving the performance of HTTP
+▶ What if not all requests had to be served by their “origin server”?
+▶ Web cache:
+endpoint that satisfies HTTP requests on behalf of an origin server
+▶ Often implemented as a proxy server:
+an intermediate server to which requests go first, which in turn acts
+as client to the original server if the request cannot be handled
+
+Web caches
+▶ Web caches take many forms
+▶ Institutional proxy server
+▶ Content Distribution Networks (CDN), e.g. Akamai, Google
+▶ Your own browser also caches objects!
+▶ Potential improvements: higher bandwidth, lower distance (== faster response), deduplication of outgoing traffic
+▶ Effectiveness determined by hit rate: how often is a request already
+available in the cache?
+
+Improving the performance of HTTP further
+HTTP and Round-trip time (RTT)
+▶ RTT: time it takes for a message to travel from client to server &
+back
+▶ HTTP uses TCP for its RDT; TCP is connection-oriented.
+▶ Building a connection takes an additional round-trip.
+
+One connection per object?
+A web page’s html code invokes 100 images to be loaded. How many
+roundtrips does it take in total to download the entire page?
+1. One connection per object: 2 ∗ (1 + 100) = 202
+2. Keep the connection open and reuse it: 1 + (1 + 100) = 102
+
+Persistence of HTTP connections
+Non-persistent: each object suffers a delivery of 2 RTTs
+Persistent: only one RTT is required to transfer
+
+--DNS--
+What does DNS do?
+The primary function of DNS it return IP addresses for queried hostnames.
+So, for instance if we look up the URL www.cs.ru.nl, DNS resolving makes sure that we actually look up the IP address 131.174.8.6.
+
+Domain name system
+The DNS is essentially a huge database contains resource records for domain names.
+A domain name such as cs.ru.nl consists of a sequence of labels, here cs, ru and nl subject to some restrictions:
+	▶ A domain name can at most be 255 octets long, and each label 63 octets.
+	▶ Labels can only contain alphanumeric ASCII-characters and “-”, must start with a letter, and cannot end with a “-”. Labels cannot be empty, with perhaps one exception.
+
+▶ Fully qualified domain name should end with a “.”; one can interpret this as that root of the DNS has label “”.
+▶ Relative domain names do not end with a “.”, and should be interpreted relative to the current domain, e.g. lilo refers to lilo.science.ru.nl. in the science.ru.nl. domain.
+▶ Outside the world of DNS, the trailing “.” of domain names is almost always dropped.
+
+Resource records hold the data of the DNS. 
+Some examples:
+|--------------------------------------------------------------------|
+| DOMAIN NAME| TTL  | CLASS | TYPE  | RESOURCE DATA	       	     |
+| cs.ru.nl.  | 86400| IN    |  A    |  131.174.9.227		     |
+| google.com.| 187  | IN    | AAAA  |  2a00:1450:400e:801::200e      |
+| cs.ru.nl.  | 600  | IN    | MX    |  5 mxb-005e0f01.gslb.pphosted. |
+|--------------------------------------------------------------------|
+
+We cannot store all DNS records on local machines due to maintenance, and it does not scale well (imagine having thousands of DNS records on your machine). 
+We cannot store all DNS records on a central server either, as it makes a single point of failure, traffic volume rises massively and again, it does not particularly scale well. 
+
+▶ The first two specify the IPv4 (A) and IPv6 (AAAA) address of cs.ru.nl and google.com, respectively
+▶ The third stipulates that an email to, say, awesterb@cs.ru.nl should be delivered to the mailserver (or ‘mail exchange’, MX) at mxb-005e0f01.gslb.pphosted.com.
+▶ The TTL, time-to-live, specifies the number of seconds the record is valid, for caching purposes.
+▶ Class is a relic from the distant past when DNS was not only used on the internet (IN) but also for the Chaosnet (CH) and Hesiod (HS).
+
+In summary: 
+
+Details of DNS records;
+- A: hostname, value is the corresponding IP address
+- AAAA: hostname, value is the corresponding IPv6 address
+- MX: alias for the mail server
+- TXT: general record for readable data
+- CNAME: canonical name for alias
+- NS: authoritative name for alias
+- SRV: host and port for service
+
+DNS: a maintenance nightmare?
+▶ Obviously, the DNS database will be huge, traffic will be intense, and users diverse.
+▶ Question: How does one administer such a large database?
+▶ Answer: split the DNS tree into zones, and have separate name servers (and organisations) responsible for each zone.
+▶ A name server can deligate responsibility for a subdomain to another name server by setting an NS resource record.
+cs.ru.nl. 82544 IN NS ns3.science.ru.nl.
+cs.ru.nl. 82544 IN NS ns1.science.ru.nl.
+cs.ru.nl. 82544 IN NS ns2.science.ru.nl.
+▶ This means that records for the cs.ru.nl domain may be obtained from any of the name servers ns{1,2,3}.science.ru.nl.
+▶ Note the redundancy here
+
+DNS Caching
+▶ To reduce the load on the DNS some name servers, when they do not have the requested records on hand, are willing to perform the query for you, and cache the result.
+▶ In this way, a DNS lookup may be resolved recursively, instead of iteratively.
+▶ A name server is said to be authoritative for a domain or certain records, when they appear in one of its zones.
+▶ Many name servers can be put in one of the following two categories:
+	▶ Authoritative name servers, that answer only queries pertaining to their zones.
+	▶ DNS resolvers, nameservers that need not have any zones of their own, but only aim to resolve recursive DNS queries as quickly as possible, e.g. Google’s 8.8.8.8 or Cloudflare’s 1.1.1.1.
+▶ When you connect to a access network, your OS usually obtains a suitable local DNS resolver (via e,.g. DHCP) often running on (or via) the local router.
+▶ DNS records can indicate how long they should be cached for by TTL values
+	▶ Things such as .org, .nl are very stable and rarely change, so they have high TTL.
+	▶ Things that change frequently in the query have low TTL.
+
+Some example servers are:
+	▶ Top level domain (TLD) servers; responsible for com, org, net or country domains such as nl, tr
+	▶ Authoritative DNS servers; organizations own DNS server, providing hostname to IP mappings for organizations named hosts. Can be maintained by the organization itself.
+	▶ There are 13 DNS root servers and they are critical to the internet infrastructure. They look like ‘a.root-servers.net’ and they are highly redundant (local DNS barely reaches these).
+
+DNS transport
+DNS messages can be sent either via UDP or TCP, to port 53 of the
+name server. Why both?
+	▶ UDP is fastest (not requiring TCPs handshake), but the query (or the response) might exceed the maximum transmission unit size of the path. (UDP packets can in principle carry up to 65507 octets, but 	  switches are free to drop packets that are too large for them.)
+▶ TCP is slower, but imposes no message size restrictions.
+Note: other transport methods exist, such as DNS over TLS and
+DNS over HTTPS, but these are not (yet) in wide use.
+
+DNSSEC
+▶ DNS was never designed with security in mind.
+▶ It’s possible to trick a DNS resolver into adding incorrect records to its cache, or the DNS resolver might answer with incorrect records on purpose (e.g. China’s Great Firewall.)
+▶ These problems are largely resolved by DNSSEC, an add-on to DNS that adds signatures to resource records, of course, by adding additional resource record types.
+
+--Decoding DNS messages--
+
+DNS messages follow a strict message format. 
+Moreover, encoding and compression techniques are applied to reduce the message size while still making the messages understandable to the receiving end. 
+These techniques, as well as the message format, are described in Chapter 4 of RFC 10357 (https://datatracker.ietf.org/doc/html/rfc1035).
+
+The general format of a message looks like the following (we look at the format of a message, as that is what the application layer adds to the stack):
+
+		+--------------------- +
+ 		|        Header        |
+		+--------------------- +
+		|       Question       | 	the question for the name server
+		+--------------------- +
+ 		|          Answer      |	RRs answering the question
+		+--------------------- +
+ 		|      Authority       | 	RRs pointing toward an authority
+		+--------------------- +
+ 		|      Additional      | 	RRs holding additional information
+		+--------------------- +
+
+The header section is always present.  The header includes fields that specify which of the remaining sections are present, and also specify whether the message is a query or a response, a standard query or some other opcode, etc.
+
+The header more specifically looks like the following:
+
+                        
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                       ID            	    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |QR|   Opcode  |AA|TC|RD|RA|   Z     |   RCODE  |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    QDCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ANCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    NSCOUNT                    |	
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ARCOUNT               	    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+Within the header, the ID field is 16 bits in total. To help, below is a converstaion with recorded hex dumps of the messages.
+
+There is a request:
+00000000 4b 8c 01 20 00 01 00 00 00 00 00 01 0a 74 6f 72 	K.. .... .....tor
+00000010 70 72 6f 6a 65 63 74 03 6f 72 67 00 00 0f 00 01 	project. org.....
+00000020 00 00 29 10 00 00 00 00 00 00 0c 00 0a 00 08 42 	..)..... .......B
+00000030 f4 19 02 f9 52 b5 bd 					....R..
+
+and a response:
+00000000 4b 8c 81 80 00 01 00 01 00 00 00 01 0a 74 6f 72 	K....... .....tor
+00000010 70 72 6f 6a 65 63 74 03 6f 72 67 00 00 0f 00 01 	project. org.....
+00000020 c0 0c 00 0f 00 01 00 00 0e 10 00 0b 00 0a 06 65 	........ .......e
+00000030 75 67 65 6e 69 c0 0c 					ugeni..
+
+This hex dump gives us a lot of important information.
+1. How can we see that the first packet is a request packet, and that the second is a response?
+To know what packet is request packet and which is a response packet we have to look at the QR bit. The message is a request if QR = 0 (value 0) or a response if QR = 1 (value 1).
+
+It’s the “first” bit of the third byte. “First” in this notation, though, really means the left-most one of the 0xFF notation (which to me is intuitive but may be confusing). So basically it’s the “8”-bit of the left nibble of the third byte in the string.
+
+In the request it is 0x01 >> 7 == 0b0. In the response it is 0x81 >> 7 == 0b1.
+For the request message we have:
+
+0001 !0000! 0000 0001
+
+And for the response value we have:
+
+0001 !0001! 0000 0001 
+
+Between the !....! we see that the bit has changed, indicating that the top message is the request and the bottom message the response.
+
+The response corresponds to the request, because it has the same id (0x4b8c).
+
+2. How can we tell the response actually corresponds to the request?
+The response corresponds to the request, because it has the same id (0x4b8c).
+
+The way you can tell that the response actually corresponds to the request is by looking at the identification values (ID) of both messages. 
+If they match, you know that they belong together. In the case of our request and response, the ID value is 4b8c (or 0x4b8c).
+
+As in exercise (a), you can also look at the QR bit of the message to see whether the message is a request or a response.
+But, we figured that this is only useful if the ID's already match, since just looking at the QR won't tell you whether the query actually came from the place you expect it to come.
+ 
+We found out that the above mentioned is resolved by using DNS Questions and Answers.
+This is the Authoritative Answer (or AA) part of the query, and this specifies that the responding name server is an authority for the domain name in question section. 
+Therefore, it is only useful in respones and not in the queries or requests.
+
+3. Which domain name is requested?
+The domain name requested is "torproject.org". 
+This can can be found in the Question section of the request message (and is also mentioned in the response message).
+It is decoded in the message (QNAME), but it can also be found in the message since it is mentioned.
+
+4. What is the type code of the query? To which type does this type code correspond9?
+The type code of the query, or QTYPE, is the two octet code that comes after the QNAME in the message, meaning the type code is 000f (or 0x000f), which corresponds to the mail exchange (MX) type value (as is found in section 3.2.2 of RFC 1035).
+
+5. What is the TTL of the returned DNS record?
+The Time To Live (TTL) is 3600 seconds in our case, or 1 hour. 
+
+Resource record format:
+
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                                               |
+    /                                               /	
+    /                      NAME                     /
+    |                                               |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      TYPE                     |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                     CLASS                     |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      TTL                      |
+    |                                               |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                   RDLENGTH                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
+    /                     RDATA                     /
+    /                                               /
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+We can find this value by looking at the ANSWER section of the message. which is
+
+c0 0c 00 0f 00 01 00 00 0e 10 00 0b 00 0a 06 65
+75 67 65 6e 69 c0 0c
+
+In the answer section we have the following informaion:
+
+c0 0c is the domain name to which this resource record pertains (torproject.org in our case).
+00 0f is the TYPE value, which is the MX type we have seen in the Question part as well.
+00 01 is the CLASS value, which is corresponding to the internet (IN) value in our case.
+00 00 0e 10 is the TTL value of the message (caching time), which is equal to 3600 seconds.
+
+
+6. What is the preference of the domain name returned by the server?
+MX RDATA format:
+
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                  PREFERENCE                   |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    /                   EXCHANGE                    /
+    /                                               /
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+The preference is 000a == 10.
+
+7. If I am a mailserver, and I am planning to send an email to somebody @torproject.org,
+what is the domain name of the server where I should deliver this mail?
+
+The record we’re dealing with is an MX record, which holds the answer to this question.
+
+The actual domain name is encoded in the DNS message by:
+
+ 06 65 75 67 65 6e 69 c0 0c
+ ^^ ^^ ^^ ^^ ^^ ^^ ^^--------- 'eugeni'
+                      ^^ ^^--- 'torproject.org'
+
+The reason c0 0c is torproject.org is because it points back into an earlier part of the response that holds torproject.org.
+
+So the domain name is eugeni.torproject.org.
